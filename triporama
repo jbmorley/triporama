@@ -50,7 +50,7 @@ def main():
             "-i", input_path,
             os.path.join(frames_directory, "frame-%06d.png")])
 
-    print "Extracting strips (%d px))..." % (options.width, )
+    print "Extracting strips (%d px)..." % (options.width, )
     frames = glob.glob(os.path.join(frames_directory, '*.png'))
     frames.sort(reverse=False)
     mogrify(["-path", strips_directory,
