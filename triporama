@@ -28,6 +28,8 @@ class TempDir(object):
         os.chdir(self._pwd)
         if not self._debug:
             shutil.rmtree(self.path)
+        else:
+            print self.path
 
 
 def convert(args):
@@ -52,16 +54,16 @@ def main():
     parser.add_argument('input', help='input file')
     parser.add_argument('--output', help='output path', default='output.jpg')
     parser.add_argument('--width', type=int, help='strip width', default=1)
+    parser.add_argument('--debug', help='debug', default=False, action='store_true')
     options = parser.parse_args()
 
     input_path = os.path.abspath(options.input)
     output_path = os.path.abspath(options.output)
 
-    with TempDir() as tempdir:
+    with TempDir(debug=options.debug) as tempdir:
         
-        working_directory = os.path.join(tempdir.path, "frames")
-        frames_directory = os.path.join(working_directory, "frames_2")
-        strips_directory = os.path.join(working_directory, "strips_2")
+        frames_directory = "frames"
+        strips_directory = "strips"
 
         makedirs(frames_directory)
         makedirs(strips_directory)
