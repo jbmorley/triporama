@@ -3,11 +3,31 @@
 import argparse
 import glob
 import os
+import shutil
 import subprocess
+import tempfile
 
 
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 SHELL_PATH = os.path.join(SCRIPTS_DIR, "triporama.sh")
+
+
+class TempDir(object):
+
+    def __init__(self, debug=False):
+        self._debug = debug
+        self._pwd = None
+        self.path = tempfile.mkdtemp()
+
+    def __enter__(self):
+        self._pwd = os.getcwd()
+        os.chdir(self.path)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        os.chdir(self._pwd)
+        if not self._debug:
+            shutil.rmtree(self.path)
 
 
 def convert(args):
@@ -37,32 +57,33 @@ def main():
     input_path = os.path.abspath(options.input)
     output_path = os.path.abspath(options.output)
 
-    cwd = os.getcwd()
-    working_directory = os.path.join(cwd, "frames")
-    frames_directory = os.path.join(working_directory, "frames_2")
-    strips_directory = os.path.join(working_directory, "strips_2")
+    with TempDir() as tempdir:
+        
+        working_directory = os.path.join(tempdir.path, "frames")
+        frames_directory = os.path.join(working_directory, "frames_2")
+        strips_directory = os.path.join(working_directory, "strips_2")
 
-    makedirs(frames_directory)
-    makedirs(strips_directory)
+        makedirs(frames_directory)
+        makedirs(strips_directory)
 
-    print "Extracting frames..."
-    ffmpeg(["-loglevel", "fatal",
-            "-i", input_path,
-            os.path.join(frames_directory, "frame-%06d.png")])
+        print "Extracting frames..."
+        ffmpeg(["-loglevel", "fatal",
+                "-i", input_path,
+                os.path.join(frames_directory, "frame-%06d.png")])
+        
+        print "Extracting strips (%d px)..." % (options.width, )
+        frames = glob.glob(os.path.join(frames_directory, '*.png'))
+        frames.sort(reverse=False)
+        mogrify(["-path", strips_directory,
+                 "-crop", "%dx+0+0" % (options.width, ),
+                 "-gravity", "center"] +
+                frames)
 
-    print "Extracting strips (%d px)..." % (options.width, )
-    frames = glob.glob(os.path.join(frames_directory, '*.png'))
-    frames.sort(reverse=False)
-    mogrify(["-path", strips_directory,
-             "-crop", "%dx+0+0" % (options.width, ),
-             "-gravity", "center"] +
-            frames)
+        print "Joining strips..."
+        strips = glob.glob(os.path.join(strips_directory, '*.png'))
+        strips.sort(reverse=False)
+        convert(strips + ["+append", output_path])
 
-    print "Joining strips..."
-    strips = glob.glob(os.path.join(strips_directory, '*.png'))
-    strips.sort(reverse=False)
-    convert(strips + ["+append", output_path])
-    
 
 if __name__=="__main__":
     main()
