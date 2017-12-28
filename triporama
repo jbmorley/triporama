@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+import argparse
+import glob
+import os
+import subprocess
+
+
+SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+SHELL_PATH = os.path.join(SCRIPTS_DIR, "triporama.sh")
+
+
+def convert(args):
+    subprocess.check_call(["convert"] + args)
+
+
+def mogrify(args):
+    subprocess.check_call(["mogrify"] + args)
+
+
+def ffmpeg(args):
+    subprocess.check_call(["ffmpeg"] + args)
+
+
+def makedirs(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate a panorama from a video of a journey.")
+    parser.add_argument('input', help='input file')
+    parser.add_argument('--output', help='output path', default='output.jpg')
+    parser.add_argument('--width', type=int, help='strip width', default=1)
+    options = parser.parse_args()
+
+    input_path = os.path.abspath(options.input)
+    output_path = os.path.abspath(options.output)
+
+    cwd = os.getcwd()
+    working_directory = os.path.join(cwd, "frames")
+    frames_directory = os.path.join(working_directory, "frames_2")
+    strips_directory = os.path.join(working_directory, "strips_2")
+
+    makedirs(frames_directory)
+    makedirs(strips_directory)
+
+    print "Extracting frames..."
+    ffmpeg(["-loglevel", "fatal",
+            "-i", input_path,
+            os.path.join(frames_directory, "frame-%06d.png")])
+
+    print "Extracting strips (%d px))..." % (options.width, )
+    frames = glob.glob(os.path.join(frames_directory, '*.png'))
+    frames.sort(reverse=False)
+    mogrify(["-path", strips_directory,
+             "-crop", "%dx+0+0" % (options.width, ),
+             "-gravity", "center"] +
+            frames)
+
+    print "Joining strips..."
+    strips = glob.glob(os.path.join(strips_directory, '*.png'))
+    strips.sort(reverse=False)
+    convert(strips + ["+append", output_path])
+    
+
+if __name__=="__main__":
+    main()
